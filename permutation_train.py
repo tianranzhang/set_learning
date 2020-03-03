@@ -9,11 +9,11 @@ def w2v_mapping(sequences, _model,len_seq):
     return mapped
 
 perm = "permutation_1_10"
-train_list = pd.read_csv('train_list_with_labels.csv', sep = '\t')
-val_list = pd.read_csv('val_list_with_labels.csv', sep = '\t')
-test_list = pd.read_csv('test_list_with_labels.csv', sep = '\t')
+train_list = pd.read_csv('set_learning/train_list_with_labels.csv', sep = '\t')
+val_list = pd.read_csv('set_learning/val_list_with_labels.csv', sep = '\t')
+test_list = pd.read_csv('set_learning/test_list_with_labels.csv', sep = '\t')
 
-perm_sequences = pd.read_csv("tcn_abnormlabs_baseline/"+perm+".csv")
+perm_sequences = pd.read_csv(perm+".csv")
 perm_sequences.head()
 
 
@@ -125,7 +125,6 @@ def training(train_data, val_data, test_data, onehot_train, onehot_val, onehot_t
   #model.add(Dense(target_num, activation='sigmoid'))
   #model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy',auc_roc, precision, recall])#keras_metrics.precision(),keras_metrics.recall()])
   #print(model.summary())
-  accommadation
     import keras
     from keras.layers import Dense,Conv1D,MaxPooling1D,Dropout
     from keras.models import Input, Model
@@ -212,15 +211,15 @@ for curr_cross_val in np.arange(1):
     rec_test.append(recall_score(test_y,(predicted_test>0.5)*1))
     prauc_vals.append(average_precision_score(val_y,predicted_val))
     prauc_test.append(average_precision_score(test_y,predicted_test))
-    if not os.path.exists("tcn_abnormlabs_baseline/"):
-        tf.gfile.MkDir("tcn_abnormlabs_baseline/")
-    if not os.path.exists("tcn_abnormlabs_baseline/"+ "/cv"):
-        tf.gfile.MkDir("tcn_abnormlabs_baseline/"+ "/cv")
-    if not os.path.exists("tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"):
-        tf.gfile.MkDir("tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/")
-    np.savetxt("tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"+"validation_pred"+str(uuid.uuid4())+".csv", predicted_val, delimiter=",")
-    np.savetxt("tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"+"test_pred"+str(uuid.uuid4())+".csv", predicted_test, delimiter=",")
-with open("tcn_abnormlabs_baseline/"+"exp_logs.csv", 'a', newline='') as csvFile:   
+    if not os.path.exists("set_learning/tcn_abnormlabs_baseline/"):
+        tf.gfile.MkDir("set_learning/tcn_abnormlabs_baseline/")
+    if not os.path.exists("set_learning/tcn_abnormlabs_baseline/"+ "/cv"):
+        tf.gfile.MkDir("set_learning/tcn_abnormlabs_baseline/"+ "/cv")
+    if not os.path.exists("set_learning/tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"):
+        tf.gfile.MkDir("set_learning/tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/")
+    np.savetxt("set_learning/tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"+"validation_pred"+str(uuid.uuid4())+".csv", predicted_val, delimiter=",")
+    np.savetxt("set_learning/tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"+"test_pred"+str(uuid.uuid4())+".csv", predicted_test, delimiter=",")
+with open("set_learning/tcn_abnormlabs_baseline/"+"exp_logs.csv", 'a', newline='') as csvFile:   
     writer = csv.DictWriter(csvFile, fieldnames=['acc_val','auc_vals','prec_val','rec_val', 'acc_test','auc_test','prec_test','rec_test',"prauc_vals","prauc_test","dim","cnn_dim","len_seq", "perm"])
     writer.writerow({'acc_val': str(np.mean(acc_val)),'auc_vals': str(np.mean(auc_vals)),'prec_val': str(np.mean(prec_val)),'rec_val': str(np.mean(rec_val)),
                     'acc_test': str(np.mean(acc_test)),'auc_test': str(np.mean(auc_test)),'prec_test': str(np.mean(prec_test)),'rec_test': str(np.mean(rec_test)), 
