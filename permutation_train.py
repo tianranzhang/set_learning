@@ -1,58 +1,53 @@
+
+
+
+
+
 import numpy as np
 import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
+import argparse
+import gensim
+
+
+parser = argparse.ArgumentParser()
+#add list of args
+parser.add_argument('--perm', type=str, default= 'noperm')
+parser.add_argument('--perm_file', type=str, default= 'None') #only useful when perm mode is 'both'
+
+parser.add_argument('--lr', type=float, default= 0.001)
+parser.add_argument('--epoch_num', type=int, default= 10)
+parser.add_argument('--cnn_dim', type=int, default= 256)
+parser.add_argument('--len_seq', type=int, default= 256)
+parser.add_argument('--curr_dim', type=int, default= 50)
+parser.add_argument('--win_size', type=int, default= 20)
+
+
+args = parser.parse_args()
+
+#Todo: add arguments and wrap this script into a function
+#Todo: write a grid search script
+perm = args.perm
+
+#hard code settings for now
+len_seq = args.len_seq
+skip_gram = 1
+win_size = args.win_size
+dim = args.curr_dim
+
+
+#Helper functions
 def w2v_mapping(sequences, _model,len_seq):
     mapped = []
     for i in sequences:
-        mapped.append([_model.wv[j].tolist() for index, j in enumerate(i) if index>len(i)-len_seq])
+        mapped.append([_model.wv[j].tolist() for index, j in enumerate(i) if index>len(i)-len_seq and j != 'nan'])
     mapped = np.array(pad_sequences(mapped, maxlen= len_seq, dtype='float', padding='pre', truncating='pre', value=0.0))
     return mapped
 
-perm = "permutation_1_10"
-train_list = pd.read_csv('set_learning/train_list_with_labels.csv', sep = '\t')
-val_list = pd.read_csv('set_learning/val_list_with_labels.csv', sep = '\t')
-test_list = pd.read_csv('set_learning/test_list_with_labels.csv', sep = '\t')
-
-perm_sequences = pd.read_csv(perm+".csv")
-perm_sequences.head()
-
-
-import gensim
-len_seq = 200
-skip_gram = 1
-win_size = 20
-dim = 50
-
-sequences = [i.split(' ') for i in list(perm_sequences.seq)]#[i.split(' ') for i in list(all_train.seq)]
-_model = gensim.models.Word2Vec(sequences, sg=skip_gram, window = win_size, iter=5, size= dim, min_count=1, workers=20)
-del sequences
-
-
-
-#spliting train/val/test sets
-train_data = perm_sequences[perm_sequences.subject_id.isin(train_list.subject_id)]
-val_data = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
-test_data = perm_sequences[perm_sequences.subject_id.isin(test_list.subject_id)]
-
-#spliting train/val/test labels
-train_y = [train_list[train_list['subject_id']==i].HF for i in list(perm_sequences.subject_id)]
-val_y = [val_list[val_list['subject_id']==i].HF for i in list(perm_sequences.subject_id)]
-test_y = [test_list[test_list['subject_id']==i].HF for i in list(perm_sequences.subject_id)]
-
-del perm_sequences
-
-train_x = w2v_mapping([i.split(' ') for i in train_data.seq], _model,len_seq)
-del train_data
-val_x = w2v_mapping([i.split(' ') for i in val_data.seq], _model,len_seq)
-del val_data 
-test_x = w2v_mapping([i.split(' ') for i in test_data.seq], _model,len_seq)
-del test_data
-
-
-#Train predictive model for HF
 def auc_roc(y_true, y_pred):
     # any tensorflow metric
-    value, update_op = tf.contrib.metrics.streaming_auc(y_pred, y_true)
+    value, update_op = tf.contrib.metrics.streaming_auc(y_pred, y_true) #tf.contrib.metrics.streaming_auc
+    
     # find all variables created for this metric
     metric_vars = [i for i in tf.local_variables() if 'auc_roc' in i.name.split('/')[1]]   
     # They will be initialized for new session.
@@ -62,11 +57,13 @@ def auc_roc(y_true, y_pred):
     # force to update metric values
     with tf.control_dependencies([update_op]):
         value = tf.identity(value)
-        return value
+    #m = tf.keras.metrics.AUC(num_thresholds = 100)
+    #m.update_state(y_true, y_pred)
+    return value #m.result().numpy()
     
 def precision(y_true, y_pred):
     # any tensorflow metric
-    value, update_op = tf.metrics.precision(y_pred, y_true)
+    value, update_op = tf.compat.v1.metrics.precision(y_pred, y_true)
 
     # find all variables created for this metric
     metric_vars = [i for i in tf.local_variables() if 'precision' in i.name.split('/')[1]]  
@@ -81,7 +78,7 @@ def precision(y_true, y_pred):
       
 def recall(y_true, y_pred):
     # any tensorflow metric
-    value, update_op = tf.metrics.recall(y_pred, y_true)
+    value, update_op = tf.compat.v1.metrics.recall(y_pred, y_true)
 
     # find all variables created for this metric
     metric_vars = [i for i in tf.local_variables() if 'recall' in i.name.split('/')[1]]
@@ -98,10 +95,189 @@ def recall(y_true, y_pred):
 
 
 
+
+from sklearn.metrics import roc_auc_score
+from keras.callbacks import Callback
+class RocCallback(Callback):
+    def __init__(self,training_data,validation_data):
+        self.x = training_data[0]
+        self.y = training_data[1]
+        self.x_val = validation_data[0]
+        self.y_val = validation_data[1]
+
+
+    def on_train_begin(self, logs={}):
+        return
+
+    def on_train_end(self, logs={}):
+        return
+
+    def on_epoch_begin(self, epoch, logs={}):
+        return
+
+    def on_epoch_end(self, epoch, logs={}):
+        y_pred_train = self.model.predict_proba(self.x)
+        roc_train = roc_auc_score(self.y, y_pred_train)
+        y_pred_val = self.model.predict_proba(self.x_val)
+        roc_val = roc_auc_score(self.y_val, y_pred_val)
+        print('\rroc-auc_train: %s - roc-auc_val: %s' % (str(round(roc_train,4)),str(round(roc_val,4))),end=100*' '+'\n')
+        return
+
+    def on_batch_begin(self, batch, logs={}):
+        return
+
+    def on_batch_end(self, batch, logs={}):
+        return
+
+#roc = RocCallback(training_data=(X_train, y_train),
+                  #validation_data=(X_test, y_test))
+
+
+
+
+#Start of main script ....
+
+#Load train/val/test subject list with labels
+train_list = pd.read_csv('train_list_with_labels.csv', sep = '\t') #set_learning/
+val_list = pd.read_csv('val_list_with_labels.csv', sep = '\t')  #set_learning/
+test_list = pd.read_csv('test_list_with_labels.csv', sep = '\t') #set_learning/
+
+
+#####temp
+#perm_sequences = pd.read_csv("tcn_abnormlabs_baseline/permutation_1_1"+".csv")
+
+
+#######################################
+# Train w2v model under two scenarios #
+#######################################
+#with open("all_sequences_abnorm.txt", "r") as text_file:  #set_learning/
+        #sequences = [i.replace('\n','') for i in text_file]   
+#sequences = [i.split(' ') for i in sequences]
+ori_sequences = pd.read_csv("all_train.csv")
+
+if perm == 'noperm':
+	sequences = [i.split(' ') for i in list(ori_sequences.seq)]
+else: #othe perm only cases...
+    perm_sequences = pd.read_csv(perm + ".csv")
+    sequences = [i.split(' ') for i in list(perm_sequences.seq)]
+
+    #sequences = [i.split(' ') for i in list(perm_sequences.seq)]
+#1) when no permutation
+#if perm == 'noperm':
+    #with open("all_sequences_abnorm.txt", "r") as text_file:  #set_learning/
+        #sequences = [i.replace('\n','') for i in text_file]   
+    #sequences = [i.split(' ') for i in sequences]
+#2) when permutation
+#elif perm == 'both':
+    #with open("all_sequences_abnorm.txt", "r") as text_file: #set_learning/
+        #sequences = [i.replace('\n','') for i in text_file]
+    #sequences_1 = [i.split(' ') for i in sequences]
+
+    #perm_sequences = pd.read_csv(args.perm_file+".csv")
+    #sequences_2 = [i.split(' ') for i in list(perm_sequences.seq)]
+
+    #sequences = sequences_1 + sequences_2
+
+#else: #othe perm only cases...
+    #perm_sequences = pd.read_csv(perm+".csv")
+    #sequences = [i.split(' ') for i in list(perm_sequences.seq)]
+
+_model = gensim.models.Word2Vec(sequences, sg=skip_gram, window = win_size, iter=5, size= dim, min_count=1, workers=20)
+del sequences
+
+######################################################
+# Load train/val data and labels under two scenarios #
+######################################################
+
+#1) when no permutation
+if perm == 'noperm':
+	train_data = pd.read_csv('train_lab_abnorm_sc1.csv', sep = ',') #set_learning/
+	#train_data = ori_sequences[ori_sequences.subject_id.isin(train_list.subject_id)] 
+	val_data = pd.read_csv('val_lab_abnorm_sc1.csv', sep = ',') 
+
+	#val_data = pd.read_csv('val_lab_abnorm.csv', sep = ',') #set_learning/
+	test_data = pd.read_csv('test_lab_abnorm_sc1.csv', sep = ',')
+
+	#train_y = list(train_list.HF)
+	#val_y = list(val_list.HF)
+	train_y = list(train_data.HF)#[int(train_list[train_list['subject_id']==i].HF) for i in train_data.subject_id]
+	val_y = list(val_data.HF)#[int(val_list[val_list['subject_id']==i].HF) for i in val_data.subject_id]
+	test_y = list(test_data.HF)#[int(test_list[test_list['subject_id']==i].HF) for i in test_data.subject_id]
+    
+
+#2) when permutation
+elif perm == 'both':
+    
+	train_data_1 = pd.read_csv('train_lab_abnorm.csv', sep = ',')  #set_learning/
+	val_data_1 = pd.read_csv('val_lab_abnorm.csv', sep = ',')#set_learning/
+	
+	train_y_1 = list(train_list.HF)
+	val_y_1 = list(val_list.HF)
+
+	train_data_2 = perm_sequences[perm_sequences.subject_id.isin(train_list.subject_id)]
+	val_data_2 = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
+	del perm_sequences
+
+	train_y_2 = [int(train_list[train_list['subject_id']==i].HF) for i in train_data_2.subject_id]
+	val_y_2 = [int(val_list[val_list['subject_id']==i].HF) for i in val_data_2.subject_id]
+	#combine the two parts
+	
+	train_data = pd.concat([train_data_1[['subject_id','seq']], train_data_2[['subject_id','seq']]])
+	val_data = pd.concat([val_data_1[['subject_id','seq']], val_data_2[['subject_id','seq']]])
+
+	train_y = train_y_1 + train_y_2
+	val_y = val_y_1 + val_y_2
+
+else: #other perm cases...
+
+	perm_sequences = pd.read_csv(perm+".csv")
+	train_data = perm_sequences[perm_sequences.subject_id.isin(train_list.subject_id)]
+	#train_data = pd.read_csv('train_lab_abnorm.csv', sep = ',')
+	val_data = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
+	test_data = ori_sequences[ori_sequences.subject_id.isin(test_list.subject_id)]
+
+	del perm_sequences
+
+	train_y = list(train_data.HF)#[int(train_list[train_list['subject_id']==i].HF) for i in train_data.subject_id]
+	val_y = list(val_data.HF)#[int(val_list[val_list['subject_id']==i].HF) for i in val_data.subject_id]
+	test_y = list(test_data.HF)#[int(test_list[test_list['subject_id']==i].HF) for i in test_data.subject_id]
+
+
+
+#############################
+# Load test data and labels #
+#############################
+
+
+#test_data = perm_sequences[perm_sequences.subject_id.isin(test_list.subject_id)]
+#test_y = [int(test_list[test_list['subject_id']==i].HF) for i in test_data.subject_id]
+
+
+#to make test set comparable to non-perm baseline
+#test_data = pd.read_csv('test_lab_abnorm.csv', sep = ',')
+#test_y = list(test_data.HF)
+
+
+########################################
+# Map train/val/test data into vectors #
+########################################
+
+#generate mapped 
+train_x = w2v_mapping([i.split(' ') for i in train_data.seq], _model,len_seq)
+del train_data
+val_x = w2v_mapping([i.split(' ') for i in val_data.seq], _model,len_seq)
+del val_data 
+test_x = w2v_mapping([i.split(' ') for i in test_data.seq], _model,len_seq)
+del test_data
+
+
+
+#################################
+# Train predictive model for HF #
+#################################
+
 #RNN model
-import numpy
 from keras import optimizers
-from keras.datasets import imdb
 from keras.models import Sequential
 from keras.layers import Dense,Input
 from keras.layers import LSTM,GRU
@@ -113,9 +289,9 @@ from keras.callbacks import TensorBoard
 
 
 def training(train_data, val_data, test_data, onehot_train, onehot_val, onehot_test, curr_cross_val = 0, 
-             dim = 256, len_seq = 50, cnn_dim = 200, epoch_num = 20):
+             dim = 256, len_seq = 50, cnn_dim = 200, epoch_num = 20, lr = 0.001):
   # fix random seed for reproducibility
-    numpy.random.seed(100)
+    np.random.seed(100)
   #model = Sequential()
   #if (lstm_num == 1):
     #model.add(LSTM(lstm_dim, input_shape=(200,dim)))
@@ -145,7 +321,10 @@ def training(train_data, val_data, test_data, onehot_train, onehot_val, onehot_t
     o = Dense(1,activation='sigmoid')(o)
 
     m = Model(inputs=[i], outputs=[o])
-    m.compile(optimizer=optimizers.Adam(lr=0.001),loss='binary_crossentropy',metrics=['accuracy',auc_roc, precision, recall])
+
+
+    #metrics = [RocCallback()]
+    m.compile(optimizer=optimizers.Adam(lr=lr),loss='binary_crossentropy', metrics= ['accuracy',auc_roc, precision, recall])
   
   #import datetime
   #curr_run_time= datetime.datetime.now()
@@ -156,9 +335,12 @@ def training(train_data, val_data, test_data, onehot_train, onehot_val, onehot_t
     
     
     tsbd = keras.callbacks.TensorBoard(log_dir='./logs', histogram_freq=0, batch_size=32, write_graph=True, write_grads=False, write_images=False, embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None, embeddings_data=None, update_freq='epoch')
-    callbacks_list = [tsbd]
+    callbacks_list = [RocCallback(training_data=(train_data, onehot_train),
+                  validation_data=(val_data, onehot_val))]
   
-    m.fit(train_data, onehot_train, validation_data=(val_data, onehot_val), epochs=epoch_num, batch_size=128,callbacks=callbacks_list)
+    m.fit(train_data, onehot_train, validation_data=(val_data, onehot_val), epochs=epoch_num, batch_size=128)#,callbacks= callbacks_list)
+
+    #print(m.history)
 
     #h = model.fit(train_data, onehot_train,validation_data=(val_data, onehot_val), epochs=epoch_num, batch_size=64,callbacks=callbacks_list)
   
@@ -177,10 +359,10 @@ def training(train_data, val_data, test_data, onehot_train, onehot_val, onehot_t
 import csv
 import os
 import uuid
-curr_dim = 50
-len_seq = 200
-cnn_dim = 200
-epoch_num = 10
+curr_dim = args.curr_dim
+len_seq = args.len_seq
+cnn_dim = args.cnn_dim
+epoch_num = args.epoch_num
 acc_val = []
 acc_test = []
 auc_vals = []
@@ -194,9 +376,10 @@ rec_test = []
 for curr_cross_val in np.arange(1):
     #train
     #making directories to save models/predictions for val/test
-    import tensorflow as tf       
+    import tensorflow as tf
+
     predicted_val, predicted_test,scores_val,scores_test = training(train_x, val_x, test_x, train_y, val_y, test_y, 
-                                                curr_cross_val, curr_dim,len_seq, cnn_dim, epoch_num)
+                                                curr_cross_val, args.curr_dim,args.len_seq, args.cnn_dim, args.epoch_num, args.lr)
     from sklearn.metrics import roc_auc_score, average_precision_score,precision_score, recall_score,roc_curve,auc
     #TODO: pick the threshold that gives the best F1
     acc_val.append(scores_val[1])
@@ -211,18 +394,35 @@ for curr_cross_val in np.arange(1):
     rec_test.append(recall_score(test_y,(predicted_test>0.5)*1))
     prauc_vals.append(average_precision_score(val_y,predicted_val))
     prauc_test.append(average_precision_score(test_y,predicted_test))
-    if not os.path.exists("set_learning/tcn_abnormlabs_baseline/"):
-        tf.gfile.MkDir("set_learning/tcn_abnormlabs_baseline/")
-    if not os.path.exists("set_learning/tcn_abnormlabs_baseline/"+ "/cv"):
-        tf.gfile.MkDir("set_learning/tcn_abnormlabs_baseline/"+ "/cv")
-    if not os.path.exists("set_learning/tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"):
-        tf.gfile.MkDir("set_learning/tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/")
-    np.savetxt("set_learning/tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"+"validation_pred"+str(uuid.uuid4())+".csv", predicted_val, delimiter=",")
-    np.savetxt("set_learning/tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"+"test_pred"+str(uuid.uuid4())+".csv", predicted_test, delimiter=",")
-with open("set_learning/tcn_abnormlabs_baseline/"+"exp_logs.csv", 'a', newline='') as csvFile:   
-    writer = csv.DictWriter(csvFile, fieldnames=['acc_val','auc_vals','prec_val','rec_val', 'acc_test','auc_test','prec_test','rec_test',"prauc_vals","prauc_test","dim","cnn_dim","len_seq", "perm"])
+    if not os.path.exists("tcn_abnormlabs_baseline/"):
+        tf.gfile.MkDir("tcn_abnormlabs_baseline/")
+    if not os.path.exists("tcn_abnormlabs_baseline/"+ "/cv"):
+        tf.gfile.MkDir("tcn_abnormlabs_baseline/"+ "/cv")
+    if not os.path.exists("tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"):
+        tf.gfile.MkDir("tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/")
+    #np.savetxt("set_learning/tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"+"validation_pred"+str(uuid.uuid4())+".csv", predicted_val, delimiter=",")
+    #np.savetxt("set_learning/tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"+"test_pred"+str(uuid.uuid4())+".csv", predicted_test, delimiter=",")
+
+    with open("tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"+"test_pred"+str(uuid.uuid4())+".csv", 'a', newline='') as csvFile:   
+        writer = csv.DictWriter(csvFile, fieldnames=['predicted_test','true_test'])
+        writer.writerow({'predicted_test':'predicted_test','true_test':'true_test'})
+        for i in range(len(test_y)):
+            writer.writerow({'predicted_test':predicted_test[i],'true_test':test_y[i]})
+    csvFile.close()
+
+    with open("tcn_abnormlabs_baseline/"+ "/cv"+ str(curr_cross_val)+"/"+"validation_pred"+str(uuid.uuid4())+".csv", 'a', newline='') as csvFile:   
+        writer = csv.DictWriter(csvFile, fieldnames=['predicted_val','true_val'])
+        writer.writerow({'predicted_val':'predicted_val','true_val':'true_val'})
+        for i in range(len(val_y)):
+            writer.writerow({'predicted_val':predicted_val[i],'true_val':val_y[i]})
+    csvFile.close()
+	
+with open("tcn_abnormlabs_baseline/"+"exp_logs.csv", 'a', newline='') as csvFile:   #set_learning/
+    writer = csv.DictWriter(csvFile, fieldnames=['acc_val','auc_vals','prec_val','rec_val', 'acc_test','auc_test','prec_test','rec_test',"prauc_vals","prauc_test","dim",
+    	"cnn_dim","len_seq", "perm","lr","epoch_num","len_seq", "curr_dim","win_size", "perm_file"])
     writer.writerow({'acc_val': str(np.mean(acc_val)),'auc_vals': str(np.mean(auc_vals)),'prec_val': str(np.mean(prec_val)),'rec_val': str(np.mean(rec_val)),
                     'acc_test': str(np.mean(acc_test)),'auc_test': str(np.mean(auc_test)),'prec_test': str(np.mean(prec_test)),'rec_test': str(np.mean(rec_test)), 
                     "prauc_vals":str(np.mean(prauc_vals)),"prauc_test":str(np.mean(prauc_test)),
-                    'dim':str(dim),"cnn_dim":str(cnn_dim),"len_seq":str(len_seq), 'perm': perm })
+                    'dim':str(dim),"cnn_dim":str(cnn_dim),"len_seq":str(len_seq), 'perm': perm, "lr": str(args.lr), "epoch_num":args.epoch_num, 
+                    "len_seq": str(args.len_seq), "curr_dim":str(args.curr_dim),"win_size": str(args.win_size), "perm_file": str(args.perm_file)})
 csvFile.close()
