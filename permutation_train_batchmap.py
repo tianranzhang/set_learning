@@ -386,7 +386,8 @@ def training(train_data, val_data, test_data, onehot_train, onehot_val, onehot_t
     import keras_metrics
     #from keras.callbacks import ModelCheckpoint, CSVLogger
     #from keras.callbacks import TensorBoard
-    from tcn import TCN
+    #
+    #import TCN
 
     #from tcn import TCN
     batch_size, timesteps, input_dim = None, len_seq, dim
