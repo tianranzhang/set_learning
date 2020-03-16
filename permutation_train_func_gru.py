@@ -283,7 +283,7 @@ for cnn_dim in [128,64,256]:
 	for len_seq in [256,128,512]:
 		for dim in [64,32,128,256]:
 			for win_size in [20, 10, 5]:
-				for perm in ['tcn_abnormlabs_baseline/permutation_1_10_label', 'noperm', 'tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
+				for perm in ['tcn_abnormlabs_baseline/permutation_1_6_label']:#, 'noperm', 'tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
 					run_num = run_num+1
 					print("run_num ", run_num)
 					#main_pipeline (perm,'None', lr, epoch_num, cnn_dim, ksize, len_seq, skip_gram, dim, win_size, run_num)
