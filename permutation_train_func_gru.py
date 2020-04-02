@@ -1,8 +1,3 @@
-
-
-
-
-
 import numpy as np
 import pandas as pd
 import argparse
@@ -118,7 +113,7 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 	#1) when no permutation
 	if perm == 'noperm':
 		
-		train_data = pd.read_csv('train_lab_abnorm_sc1.csv', sep = ',') #set_learning/
+		train_data = pd.read_csv('train_lab_abnorm_sc1.csv', sep = ',')
 		val_data = pd.read_csv('val_lab_abnorm_sc1.csv', sep = ',') 
 		test_data = pd.read_csv('test_lab_abnorm_sc1.csv', sep = ',')
 
@@ -131,18 +126,21 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 	#2) when permutation
 	elif perm == 'both':
 	    
-		train_data_1 = pd.read_csv('train_lab_abnorm_sc1.csv', sep = ',')  #set_learning/
-		val_data_1 = pd.read_csv('val_lab_abnorm_sc1.csv', sep = ',')#set_learning/
+		train_data_1 = pd.read_csv('train_lab_abnorm_sc1.csv', sep = ',')
+		val_data_1 = pd.read_csv('val_lab_abnorm_sc1.csv', sep = ',')
 		
-		train_y_1 = list(train_list.HF)
-		val_y_1 = list(val_list.HF)
+		train_y_1 = list(train_data_1.HF)
+		val_y_1 = list(val_data_1.HF)
+		
+		#Load the perm sequences
+		perm_sequences = pd.read_csv(perm_file+".csv")
 
 		train_data_2 = perm_sequences[perm_sequences.subject_id.isin(train_list.subject_id)]
 		val_data_2 = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
 		del perm_sequences
 
-		train_y_2 = [int(train_list[train_list['subject_id']==i].HF) for i in train_data_2.subject_id]
-		val_y_2 = [int(val_list[val_list['subject_id']==i].HF) for i in val_data_2.subject_id]
+		train_y_2 = list(train_data_2.HF)
+		val_y_2 = list(val_data_2.HF)
 		#combine the two parts
 		
 		train_data = pd.concat([train_data_1[['subject_id','seq']], train_data_2[['subject_id','seq']]])
@@ -151,7 +149,13 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 		train_y = train_y_1 + train_y_2
 		val_y = val_y_1 + val_y_2
 
-	else: #other perm cases...
+
+		test_data = pd.read_csv('test_lab_abnorm_sc1.csv', sep = ',')
+		test_y = list(test_data.HF)
+
+
+
+	else: #perm data only
 
 		perm_sequences = pd.read_csv(perm+".csv")
 		train_data = perm_sequences[perm_sequences.subject_id.isin(train_list.subject_id)]
@@ -178,13 +182,18 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 	del test_data
     
 	ori_sequences = pd.read_csv("all_train.csv")
+
 	if perm == 'noperm':
 		sequences = [i.split(' ') for i in list(ori_sequences.seq)]
+	elif perm == 'both':
+		perm_sequences = pd.read_csv(perm_file + ".csv")
+		sequences = [i.split(' ') for i in list(ori_sequences.seq)] + [i.split(' ') for i in list(perm_sequences.seq)]
 	else: #othe perm only cases...
 		perm_sequences = pd.read_csv(perm + ".csv")
 		sequences = [i.split(' ') for i in list(perm_sequences.seq)]
+		#sequences = sequences + [i.split(' ') for i in list(ori_sequences.seq)]
 
-	_model = gensim.models.Word2Vec(train_x+val_x+test_x+sequences, sg=1, window = win_size, iter=5, size= dim, min_count=1, workers=20)
+	_model = gensim.models.Word2Vec(train_x + test_x + val_x, sg=1, window = win_size, iter=5, size= dim, min_count=1, workers=20)
 
 
 	embeddings_index = {}
@@ -273,7 +282,6 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 
 
 import gc
-
 run_num=0
 lr = 0.001
 skip_gram = 1
@@ -283,14 +291,11 @@ for cnn_dim in [128,64,256]:
 	for len_seq in [256,128,512]:
 		for dim in [64,32,128,256]:
 			for win_size in [20, 10, 5]:
-				for perm in ['tcn_abnormlabs_baseline/permutation_1_6_label']:#, 'noperm', 'tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
+				for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
 					run_num = run_num+1
 					print("run_num ", run_num)
 					#main_pipeline (perm,'None', lr, epoch_num, cnn_dim, ksize, len_seq, skip_gram, dim, win_size, run_num)
-					main_pipeline (perm = perm, perm_file = 'None', lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
+					main_pipeline (perm = 'both', perm_file = perm_file, lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
 						len_seq = len_seq, skip_gram = skip_gram, dim = dim, win_size = win_size, run_num = run_num)
 					tensorflow.keras.backend.clear_session()
 					gc.collect()
-
-
-
