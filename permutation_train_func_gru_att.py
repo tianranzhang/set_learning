@@ -294,16 +294,19 @@ run_num=0
 lr = 0.001
 skip_gram = 1
 epoch_num = 30
+perm_file = 'None'
 #res_block = 1
 for cnn_dim in [128,64,256]:
 	for len_seq in [256,128,512]:
 		for dim in [64,32,128,256]:
 			for win_size in [20, 10, 5]:
-				for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
+				for perm in ['noperm','tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
+				
+				#for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
 					run_num = run_num+1
 					print("run_num ", run_num)
 					#main_pipeline (perm,'None', lr, epoch_num, cnn_dim, ksize, len_seq, skip_gram, dim, win_size, run_num)
-					main_pipeline (perm = 'both', perm_file = perm_file, lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
+					main_pipeline (perm = perm, perm_file = perm_file, lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
 						len_seq = len_seq, skip_gram = skip_gram, dim = dim, win_size = win_size, run_num = run_num)
 					tensorflow.keras.backend.clear_session()
 					gc.collect()
