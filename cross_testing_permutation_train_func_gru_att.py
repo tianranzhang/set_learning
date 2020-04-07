@@ -123,10 +123,11 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 
 		
 		train_data = pd.read_csv('train_lab_abnorm_sc1.csv', sep = ',')
+		val_data = pd.read_csv('val_lab_abnorm_sc1.csv', sep = ',')
 		
 		####temp modification for testing the robustness of noperm data on perm test set
 		perm_sequences = pd.read_csv(perm_file+".csv")
-		val_data = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
+		#val_data = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
 		test_data = perm_sequences[perm_sequences.subject_id.isin(test_list.subject_id)]
 		####### end of temp modification
 		
@@ -139,34 +140,37 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 	elif perm == 'both':
 	    
 		train_data_1 = pd.read_csv('train_lab_abnorm_sc1.csv', sep = ',')
-		#val_data_1 = pd.read_csv('val_lab_abnorm_sc1.csv', sep = ',')
-		train_y_1 = list(train_data_1.HF)
+		val_data_1 = pd.read_csv('val_lab_abnorm_sc1.csv', sep = ',')
+		
+		train_y_1 = list(train_data_1.HF)		
+		val_y_1 = list(val_data_1.HF)
 
 
 
 		perm_sequences = pd.read_csv(perm_file+".csv")
-		#val_y_1 = list(val_data_1.HF)
+		
 		train_data_2 = perm_sequences[perm_sequences.subject_id.isin(train_list.subject_id)]
-		#val_data_2 = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
+		val_data_2 = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
+		
 		train_y_2 = list(train_data_2.HF)
-		#val_y_2 = list(val_data_2.HF)
+		val_y_2 = list(val_data_2.HF)
 
 
 
 		#combine the two parts
 		train_data = pd.concat([train_data_1[['subject_id','seq']], train_data_2[['subject_id','seq']]])
-		#val_data = pd.concat([val_data_1[['subject_id','seq']], val_data_2[['subject_id','seq']]])
+		val_data = pd.concat([val_data_1[['subject_id','seq']], val_data_2[['subject_id','seq']]])
 		train_y = train_y_1 + train_y_2
-		#val_y = val_y_1 + val_y_2
+		val_y = val_y_1 + val_y_2
 		
 
 		#Load the perm sequences
-		val_data = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
+		#val_data = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
 		test_data = perm_sequences[perm_sequences.subject_id.isin(test_list.subject_id)]
 
 		del perm_sequences
 		
-		val_y = list(val_data.HF)
+		#val_y = list(val_data.HF)
 		test_y = list(test_data.HF)
 
 
@@ -295,7 +299,7 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 				writer.writerow({'predicted_val':predicted_val[i],'true_val':val_y[i]})
 		csvFile.close()
 	
-	with open("tcn_abnormlabs_baseline/"+"exp_logs_gru_att_cross_testing_on_perm.csv", 'a', newline='') as csvFile: 
+	with open("tcn_abnormlabs_baseline/"+"exp_logs_gru_att_cross_testing_on_perm_val_from_train_data_type.csv", 'a', newline='') as csvFile: 
 		writer = csv.DictWriter(csvFile, fieldnames=['acc_val','auc_vals','prec_val','rec_val', 'acc_test','auc_test','prec_test','rec_test',"prauc_vals","prauc_test","dim",
     		"cnn_dim","len_seq", "perm","lr","epoch_num","len_seq", "curr_dim","win_size", "perm_file","run_num"])
 		writer.writerow({'acc_val': str(np.mean(acc_val)),'auc_vals': str(np.mean(auc_vals)),'prec_val': str(np.mean(prec_val)),'rec_val': str(np.mean(rec_val)),
@@ -319,7 +323,7 @@ epoch_num = 30
 for cnn_dim in [128,64,256]:
 	for len_seq in [256,128,512]:
 		for dim in [64,32,128,256]:
-			for win_size in [5]:
+			for win_size in [5,10,20]:
 				for perm in ['noperm', 'perm', 'both']:
 					for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:		
 					#for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
