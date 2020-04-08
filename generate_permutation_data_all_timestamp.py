@@ -96,20 +96,23 @@ for i in list(labs_filtered.subject_id.unique()):
             print('ended early, number of timestamps: ',len(charttime_list))
             break;
         fs = fs+1
-        curr_subj_permutation = []
+        curr_subj_permutation = ''
         for k in charttime_list:#set(curr_subj.charttime):
             unordered_set = list(curr_subj[curr_subj['charttime'] ==str(k)].event)
             if k in time_to_permute:
-                new_seq = list(np.random.permutation(unordered_set))
-                curr_subj_permutation = curr_subj_permutation + [new_seq]
+                new_seq = np.random.permutation(unordered_set)
+                curr_subj_permutation = curr_subj_permutation + ' '.join([str(e) for e in new_seq])
+                #pd.concat([curr_subj_permutation,new_seq ], ignore_index=True).append(new_seq)
             else:
-                curr_subj_permutation = curr_subj_permutation + [unordered_set]
+                curr_subj_permutation = curr_subj_permutation + ' '.join(unordered_set)
+        #print(curr_subj_permutation)
         if curr_subj_permutation in curr_subj_permutations:
             continue;
         curr_subj_permutations =curr_subj_permutations+[curr_subj_permutation]            
     with open("tcn_abnormlabs_baseline/"+"permutation_all_10_label.csv", 'a', newline='') as csvFile:   
         writer = csv.DictWriter(csvFile, fieldnames=['subject_id','seq','HF'])
         for k in curr_subj_permutations:
+            #print(' '.join([str(i) for i in k.split(' ') if i is not None]))
                 #train_seqs = train_seqs.append({'subject_id': str(i), 'seq': ','.join(i for i in k if i is not None)}, ignore_index=True)
-            writer.writerow({'subject_id': str(i), 'seq': ' '.join(str(i).replace('[','').replace(']',''.replace(',','').replace('  ',' ').replace('\'','')) for i in k if i is not None),'HF': list(all_train[all_train['subject_id']== i].HF)[0]})
+            writer.writerow({'subject_id': str(i), 'seq': ' '.join([str(i) for i in k.split(' ') if i is not None]),'HF': list(all_train[all_train['subject_id']== i].HF)[0]})
     csvFile.close()
