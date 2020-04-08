@@ -60,7 +60,7 @@ import csv
 np.random.seed(100)
 
 #Write header
-with open("tcn_abnormlabs_baseline/"+"permutation_all_10_label.csv", 'a', newline='') as csvFile:   
+with open("tcn_abnormlabs_baseline/"+"permutation_percent_"+str(args.perm_time_num)+"_"+str(args.perm_num)+"_label.csv", 'a', newline='') as csvFile:   
         writer = csv.DictWriter(csvFile, fieldnames=['subject_id','seq','HF'])
         writer.writerow({'subject_id': 'subject_id', 'seq': 'seq','HF': 'HF'})
 csvFile.close()
@@ -72,23 +72,19 @@ for i in list(labs_filtered.subject_id.unique()):
     curr_subj = labs_filtered.query('subject_id == '+str(i) +'and hadm_id!='+str(list(last_adm_info.query('subject_id == '+str(i)).hadm_id)[0]))
     curr_subj_permutations = []
     all_timestamps = list(set(curr_subj.charttime))
-    if args.perm_time_num == -1:
-        time_to_permute = all_timestamps
-    else:
-        unique_charttime = []
-        for i in list(curr_subj.charttime):
-            if i in unique_charttime:
-                continue;
-            else:
-                unique_charttime = unique_charttime+[i]
-
-        time_to_permute = random.choices(unique_charttime, k = args.perm_time_num)
-    #print(time_to_permute)
-    charttime_list = []
-    for t in list(curr_subj.charttime):
-        if t in charttime_list:
+    
+    unique_charttime = []
+    for e in list(curr_subj.charttime):
+        if str(e) in unique_charttime:
             continue;
-        charttime_list = charttime_list + [t]
+        else:
+            unique_charttime = unique_charttime+[str(e)]
+
+    time_to_permute = random.sample( all_timestamps, k = int(args.perm_time_num*len(all_timestamps)))
+
+    #print([str(l) in time_to_permute for l in  unique_charttime])
+    #print(unique_charttime)
+    #print(len(all_timestamps),' ', len(time_to_permute) , ' ',   len(unique_charttime))
     #charttime_list
     fs=0
     while len(curr_subj_permutations)<args.perm_num:
@@ -97,21 +93,26 @@ for i in list(labs_filtered.subject_id.unique()):
             break;
         fs = fs+1
         curr_subj_permutation = ''
-        for k in charttime_list:#set(curr_subj.charttime):
+        for k in unique_charttime:#set(curr_subj.charttime):
             unordered_set = list(curr_subj[curr_subj['charttime'] ==str(k)].event)
-            if k in time_to_permute:
+            if str(k) in time_to_permute:
                 new_seq = np.random.permutation(unordered_set)
                 curr_subj_permutation = curr_subj_permutation + ' '.join([str(e) for e in new_seq])
                 #pd.concat([curr_subj_permutation,new_seq ], ignore_index=True).append(new_seq)
             else:
-                curr_subj_permutation = curr_subj_permutation + ' '.join(unordered_set)
+                #print(k,' ', time_to_permute)
+                print('not supposed to be here')
+                curr_subj_permutation = curr_subj_permutation + ' '.join([str(e) for e in unordered_set])
         #print(curr_subj_permutation)
         if curr_subj_permutation in curr_subj_permutations:
             continue;
         curr_subj_permutations =curr_subj_permutations+[curr_subj_permutation]            
-    with open("tcn_abnormlabs_baseline/"+"permutation_all_10_label.csv", 'a', newline='') as csvFile:   
+    with open("tcn_abnormlabs_baseline/"+"permutation_percent_"+str(args.perm_time_num)+"_"+str(args.perm_num)+"_label.csv", 'a', newline='') as csvFile:   
         writer = csv.DictWriter(csvFile, fieldnames=['subject_id','seq','HF'])
         for k in curr_subj_permutations:
+            #print(' '.join([str(i) for i in k.split(' ')]))
+            #print(all_train[all_train['subject_id']== i].HF)
+            
             #print(' '.join([str(i) for i in k.split(' ') if i is not None]))
                 #train_seqs = train_seqs.append({'subject_id': str(i), 'seq': ','.join(i for i in k if i is not None)}, ignore_index=True)
             writer.writerow({'subject_id': str(i), 'seq': ' '.join([str(i) for i in k.split(' ') if i is not None]),'HF': list(all_train[all_train['subject_id']== i].HF)[0]})
