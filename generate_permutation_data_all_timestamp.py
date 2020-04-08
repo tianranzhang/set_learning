@@ -95,18 +95,21 @@ for i in list(labs_filtered.subject_id.unique()):
         curr_subj_permutation = ''
         for k in unique_charttime:#set(curr_subj.charttime):
             unordered_set = list(curr_subj[curr_subj['charttime'] ==str(k)].event)
+            #print(unordered_set)
+
             if str(k) in time_to_permute:
                 new_seq = np.random.permutation(unordered_set)
-                curr_subj_permutation = curr_subj_permutation + ' '.join([str(e) for e in new_seq])
+                curr_subj_permutation = curr_subj_permutation +' '+ ' '.join([str(e) for e in new_seq])
                 #pd.concat([curr_subj_permutation,new_seq ], ignore_index=True).append(new_seq)
             else:
                 #print(k,' ', time_to_permute)
                 print('not supposed to be here')
-                curr_subj_permutation = curr_subj_permutation + ' '.join([str(e) for e in unordered_set])
+                curr_subj_permutation = curr_subj_permutation + ' '+' '.join([str(e) for e in unordered_set])
         #print(curr_subj_permutation)
         if curr_subj_permutation in curr_subj_permutations:
             continue;
-        curr_subj_permutations =curr_subj_permutations+[curr_subj_permutation]            
+        curr_subj_permutations =curr_subj_permutations+[curr_subj_permutation] 
+        #print(curr_subj_permutations)           
     with open("tcn_abnormlabs_baseline/"+"permutation_percent_"+str(args.perm_time_num)+"_"+str(args.perm_num)+"_label.csv", 'a', newline='') as csvFile:   
         writer = csv.DictWriter(csvFile, fieldnames=['subject_id','seq','HF'])
         for k in curr_subj_permutations:
