@@ -89,7 +89,7 @@ for i in list(labs_filtered.subject_id.unique()):
     fs=0
     while len(curr_subj_permutations)<args.perm_num:
         if fs>args.tolerance:
-            print('ended early, number of timestamps: ',len(charttime_list))
+            print('ended early, number of timestamps: ',len(all_timestamps))
             break;
         fs = fs+1
         curr_subj_permutation = ''
