@@ -334,6 +334,8 @@ for cnn_dim in [128,64,256]:
 					#for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
 						run_num = run_num+1
 						print("run_num ", run_num)
+						if run_num<866:
+							continue;
 						main_pipeline (perm = perm, perm_file = perm_file, lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
 							len_seq = len_seq, skip_gram = skip_gram, dim = dim, win_size = win_size, run_num = run_num)
 						tensorflow.keras.backend.clear_session()

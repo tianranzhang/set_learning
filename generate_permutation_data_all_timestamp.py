@@ -8,6 +8,9 @@ parser.add_argument('--perm_time_num', type=int, default= 1)
 
 parser.add_argument('--perm_num', type=int, default= 1)
 
+parser.add_argument('--unique', type=int, default= 0)
+
+
 parser.add_argument('--tolerance', type=int, default= 1000)
 
 
@@ -60,7 +63,7 @@ import csv
 np.random.seed(100)
 
 #Write header
-with open("tcn_abnormlabs_baseline/"+"permutation_percent_"+str(args.perm_time_num)+"_"+str(args.perm_num)+"_label.csv", 'a', newline='') as csvFile:   
+with open("tcn_abnormlabs_baseline/"+"permutation_percent_"+str(args.perm_time_num)+"_"+str(args.perm_num)+"_unique"+str(args.unique)+"_label.csv", 'a', newline='') as csvFile:   
         writer = csv.DictWriter(csvFile, fieldnames=['subject_id','seq','HF'])
         writer.writerow({'subject_id': 'subject_id', 'seq': 'seq','HF': 'HF'})
 csvFile.close()
@@ -106,11 +109,12 @@ for i in list(labs_filtered.subject_id.unique()):
                 print('not supposed to be here')
                 curr_subj_permutation = curr_subj_permutation + ' '+' '.join([str(e) for e in unordered_set])
         #print(curr_subj_permutation)
-        if curr_subj_permutation in curr_subj_permutations:
-            continue;
+        if args.unique==1:
+            if curr_subj_permutation in curr_subj_permutations:
+                continue;
         curr_subj_permutations =curr_subj_permutations+[curr_subj_permutation] 
         #print(curr_subj_permutations)           
-    with open("tcn_abnormlabs_baseline/"+"permutation_percent_"+str(args.perm_time_num)+"_"+str(args.perm_num)+"_label.csv", 'a', newline='') as csvFile:   
+    with open("tcn_abnormlabs_baseline/"+"permutation_percent_"+str(args.perm_time_num)+"_"+str(args.perm_num)+"_unique"+str(args.unique)+"_label.csv", 'a', newline='') as csvFile:   
         writer = csv.DictWriter(csvFile, fieldnames=['subject_id','seq','HF'])
         for k in curr_subj_permutations:
             #print(' '.join([str(i) for i in k.split(' ')]))
