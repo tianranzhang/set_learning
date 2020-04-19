@@ -74,8 +74,10 @@ def training(train_data, val_data, test_data, onehot_train, onehot_val, onehot_t
     x = Lambda(lambda z:z*len_seq)(x)
     # AVG
     x = GlobalAveragePooling1D()(x)
-    #o = tensorflow.keras.layers.Concatenate()([o1,o2])
     o = Dense(1, activation='sigmoid')(x)
+
+
+    #o = tensorflow.keras.layers.Concatenate()([o1,o2])
 
     m = Model(inputs=[sequence_input], outputs=[o])
     m.compile(optimizer=optimizers.Adam(lr=lr),loss='binary_crossentropy', metrics= ['accuracy',tensorflow.keras.metrics.AUC(), tensorflow.keras.metrics.Precision(), tensorflow.keras.metrics.Recall()])
@@ -372,18 +374,20 @@ dim=256
 #perm_file = 'None'
 #res_block = 1
 #for win_size in [5,10,20]:
-for len_seq in [128,256,512]:
-	for perm in ['noperm', 'perm']:
-		for cnn_dim in [128,64,256]:
-			for perm_file in ['tcn_abnormlabs_baseline/permutation_percent_1_100_unique0_label']:#,'tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:		
-				#for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
-				run_num = run_num+1
-				print("run_num ", run_num)
-				if run_num in [1,2,3,4,10,16]:
-					continue;
-				if perm=='noperm':
-					perm_file = 'None'
-				main_pipeline (perm = perm, perm_file = perm_file, lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
-					len_seq = len_seq, skip_gram = skip_gram, dim = dim, win_size = win_size, run_num = run_num)
-				tensorflow.keras.backend.clear_session()
-				gc.collect()
+for iterator in [1,2,3,4,5,6,7,8,9,10]:
+	for len_seq in [128,256,512]:
+		for perm in ['noperm', 'perm']:
+			for cnn_dim in [128,64,256]:
+				for perm_file in ['tcn_abnormlabs_baseline/permutation_percent_1_100_unique0_label']:#,'tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:		
+					#for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
+					run_num = run_num+1
+					print("iteration: ", iterator, "  run_num: ", run_num)
+					#if run_num in [1,2,3,4,10,16]:
+						#continue;
+					if perm=='noperm':
+						perm_file = 'None'
+					else: epoch_num = 3
+					main_pipeline (perm = perm, perm_file = perm_file, lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
+						len_seq = len_seq, skip_gram = skip_gram, dim = dim, win_size = win_size, run_num = run_num)
+					tensorflow.keras.backend.clear_session()
+					gc.collect()
