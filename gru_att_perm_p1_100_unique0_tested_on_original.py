@@ -367,14 +367,14 @@ import gc
 run_num=0
 lr = 0.001
 skip_gram = 1
-epoch_num = 30
+epoch_num = 100
 
 win_size = 5
 dim=256
 #perm_file = 'None'
 #res_block = 1
 #for win_size in [5,10,20]:
-for iterator in [1,2,3,4,5,6,7,8,9,10]:
+for iterator in [1,2,3,4,5]:
 	for len_seq in [128,256,512]:
 		for perm in ['noperm', 'perm']:
 			for cnn_dim in [128,64,256]:
@@ -382,11 +382,12 @@ for iterator in [1,2,3,4,5,6,7,8,9,10]:
 					#for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
 					run_num = run_num+1
 					print("iteration: ", iterator, "  run_num: ", run_num)
-					#if run_num in [1,2,3,4,10,16]:
-						#continue;
+					if iterator ==1 and run_num < 4:
+						continue;
 					if perm=='noperm':
+						epoch_num = 100
 						perm_file = 'None'
-					else: epoch_num = 3
+					else: epoch_num = 5
 					main_pipeline (perm = perm, perm_file = perm_file, lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
 						len_seq = len_seq, skip_gram = skip_gram, dim = dim, win_size = win_size, run_num = run_num)
 					tensorflow.keras.backend.clear_session()
