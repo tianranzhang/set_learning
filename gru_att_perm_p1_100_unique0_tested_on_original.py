@@ -349,7 +349,7 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 				#writer.writerow({'predicted_val':predicted_val[i],'true_val':val_y[i]})
 		#csvFile.close()
 	
-	with open("tcn_abnormlabs_baseline/"+"exp_logs_gru_att_test_on_original_p1_100_unique0_fixed_w2v.csv", 'a', newline='') as csvFile: 
+	with open("tcn_abnormlabs_baseline/"+"sanity_check_exp_logs_gru_att_test_on_original_p1_100_unique0_fixed_w2v.csv", 'a', newline='') as csvFile: 
 		writer = csv.DictWriter(csvFile, fieldnames=['acc_val','auc_vals','prec_val','rec_val', 'acc_test','auc_test','prec_test','rec_test',"prauc_vals","prauc_test","dim",
     		"cnn_dim","len_seq", "perm","lr","epoch_num","len_seq", "curr_dim","win_size", "perm_file","run_num"])
 		writer.writerow({'acc_val': str(np.mean(acc_val)),'auc_vals': str(np.mean(auc_vals)),'prec_val': str(np.mean(prec_val)),'rec_val': str(np.mean(rec_val)),
@@ -375,19 +375,19 @@ dim=256
 #res_block = 1
 #for win_size in [5,10,20]:
 for iterator in [1,2,3,4,5]:
-	for len_seq in [128,256,512]:
-		for perm in ['noperm', 'perm']:
-			for cnn_dim in [128,64,256]:
+	for len_seq in [256]:#128,256,
+		for perm in ['noperm']:#'perm', 
+			for cnn_dim in [256]:#,64,256
 				for perm_file in ['tcn_abnormlabs_baseline/permutation_percent_1_100_unique0_label']:#,'tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:		
 					#for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
 					run_num = run_num+1
 					print("iteration: ", iterator, "  run_num: ", run_num)
-					if iterator ==1 and run_num < 4:
-						continue;
+					#if iterator ==1 and run_num < 4:
+						#continue;
 					if perm=='noperm':
-						epoch_num = 100
+						#epoch_num = 100
 						perm_file = 'None'
-					else: epoch_num = 5
+					#else: epoch_num = 5
 					main_pipeline (perm = perm, perm_file = perm_file, lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
 						len_seq = len_seq, skip_gram = skip_gram, dim = dim, win_size = win_size, run_num = run_num)
 					tensorflow.keras.backend.clear_session()

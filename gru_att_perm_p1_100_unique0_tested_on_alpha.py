@@ -18,9 +18,11 @@ import keras_metrics
 def pad_trun_sequences(seq, len_seq):
     new_seq = list()
     print('pad_trun_sequences length ', len(seq),'...')
+    if len_seq==-1:
+    	len_seq = max([len(element) for element in seq])
     for i in seq:
         #print(len(i))
-        i = [j for j in i if j not in ['', 'nan','0','1']]
+        i = [j for j in i if j not in ['', 'nan']]
         length= len(i)
         if length>len_seq:
              new_seq =  new_seq + [i[length-len_seq-1:-1]]
@@ -72,8 +74,10 @@ def training(train_data, val_data, test_data, onehot_train, onehot_val, onehot_t
     x = Lambda(lambda z:z*len_seq)(x)
     # AVG
     x = GlobalAveragePooling1D()(x)
-    #o = tensorflow.keras.layers.Concatenate()([o1,o2])
     o = Dense(1, activation='sigmoid')(x)
+
+
+    #o = tensorflow.keras.layers.Concatenate()([o1,o2])
 
     m = Model(inputs=[sequence_input], outputs=[o])
     m.compile(optimizer=optimizers.Adam(lr=lr),loss='binary_crossentropy', metrics= ['accuracy',tensorflow.keras.metrics.AUC(), tensorflow.keras.metrics.Precision(), tensorflow.keras.metrics.Recall()])
@@ -126,15 +130,26 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 		
 		train_data = pd.read_csv('train_lab_abnorm_sc1.csv', sep = ',')
 		val_data = pd.read_csv('val_lab_abnorm_sc1.csv', sep = ',')
+
+
+
+		
+		####temp modification for testing the robustness of alpha data on alpha test set
+		test_perm_sequences = pd.read_csv("tcn_abnormlabs_baseline/permutation_percent_0_1_unique0_orderingalpha_label.csv", sep=',' )
+		train_data = test_perm_sequences[test_perm_sequences.subject_id.isin(train_list.subject_id)]
+		val_data = test_perm_sequences[test_perm_sequences.subject_id.isin(val_list.subject_id)]
 		
 		####temp modification for testing the robustness of noperm data on perm test set
 		#perm_sequences = pd.read_csv(perm_file+".csv")
 
-		test_perm_sequences = pd.read_csv('test_lab_abnorm_sc1.csv', sep=',')
+		#test_perm_sequences = pd.read_csv('test_lab_abnorm_sc1.csv', sep=',')
 		#val_data = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
 		test_data = test_perm_sequences[test_perm_sequences.subject_id.isin(test_list.subject_id)]
 		####### end of temp modification
 		
+		
+
+
 		train_y = list(train_data.HF)
 		val_y = list(val_data.HF)
 		test_y = list(test_data.HF)
@@ -182,6 +197,7 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 
 	else: #perm data only
 		print('reading perm data...')
+		print(perm_file)
 		perm_sequences = pd.read_csv(perm_file+".csv")
 		#test_perm_sequences = pd.read_csv(perm_file+".csv")
 
@@ -192,8 +208,12 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 		val_data = perm_sequences[perm_sequences.subject_id.isin(val_list.subject_id)]
 		print('val data ready...')
 		
-		test_perm_sequences = pd.read_csv('test_lab_abnorm_sc1.csv', sep=',')
-		test_data = test_perm_sequences[test_perm_sequences.subject_id.isin(test_list.subject_id)]
+		perm_sequences = pd.read_csv('test_lab_abnorm_sc1.csv', sep = ',')#"tcn_abnormlabs_baseline/permutation_percent_0_1_unique0_orderingalpha_label.csv")
+		test_data = perm_sequences[perm_sequences.subject_id.isin(test_list.subject_id)]
+		#test_perm_sequences = pd.read_csv('test_lab_abnorm_sc1.csv', sep=',')
+		#test_data = test_perm_sequences[test_perm_sequences.subject_id.isin(test_list.subject_id)]
+
+
 		print('test data ready...')
 
 		del perm_sequences
@@ -206,35 +226,39 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 	########################################
 	# Map train/val/test data into vectors #
 	########################################
-	val_x = pad_trun_sequences([i.split(' ') for i in val_data.seq][:val_data.count()[0]], len_seq )
-	pd.DataFrame((val_x)).to_csv(perm_file+'_val_x_'+str(len_seq)+'.csv')
-
-	val_x = pd.read_csv(perm_file+'_val_x_'+str(len_seq)+'.csv', sep = '\t')
-	#val_x.columns = ['seq']
-	#val_x = val_x.to_csv(perm_file+'_val_x_'+str(len_seq)+'.csv')
-	#val_x = (pd.read_csv(perm_file+'_val_x_'+str(len_seq)+'.csv', sep = ','))['seq'].series.tolist()
-
-	#val_x = [','.join(element).replace(0,'00000') for element in val_x]
-
-
-	print("perm val data loaded")
-	print(val_x)
-	del val_data 
-	#train_x = pad_trun_sequences([i.split(' ') for i in train_data.seq][:train_data.count()[0]], len_seq )
-	#pd.DataFrame(np.array(train_x)).to_csv(perm_file+'_train_x_'+str(len_seq))
-	#train_x = (pd.read_csv(perm_file+'_train_x_'+str(len_seq)+'.csv', sep = ',')).values.tolist()
-	train_x = pd.read_csv(perm_file+'_train_x_'+str(len_seq)+'.csv', sep = ',')
-	train_x.columns = ['seq']
-	train_x = train_x.to_csv(perm_file+'_train_x_'+str(len_seq)+'.csv')
-	train_x = (pd.read_csv(perm_file+'_train_x_'+str(len_seq)+'.csv', sep = ','))['seq'].series.tolist()
-
-	train_x = [','.join(element).replace(0,'00000') for element in train_x]
-	print("perm train data saved")
-	del train_data
 	
+
+	if perm == 'noperm':
+
+		val_x = pad_trun_sequences([i.split(' ') for i in val_data.seq][:val_data.count()[0]], len_seq )
+		del val_data
+		train_x = pad_trun_sequences([i.split(' ') for i in train_data.seq][:train_data.count()[0]], len_seq )
+		del train_data
+
+
+	elif perm=='perm':
+		val_x = pad_trun_sequences([i.split(' ') for i in val_data.seq][:val_data.count()[0]], len_seq )
+		val_x = pd.DataFrame(([' '.join(element) for element in val_x])).rename_axis(None)
+		val_x.columns  = ['seq']
+		val_x.to_csv(perm_file+'_val_x_'+str(len_seq)+'.csv',  index=False)
+		val_x = pd.read_csv(perm_file+'_val_x_'+str(len_seq)+'.csv', sep = '\t')['seq'].tolist()
+		val_x = [element.split(' ') for element in val_x]
+		print("perm val data loaded")
+		del val_data 
+	
+		train_x = pad_trun_sequences([i.split(' ') for i in train_data.seq][:train_data.count()[0]], len_seq )
+		train_x = pd.DataFrame(([' '.join(element) for element in train_x])).rename_axis(None)
+		train_x.columns  = ['seq']
+		train_x.to_csv(perm_file+'_train_x_'+str(len_seq)+'.csv',  index=False)
+		train_x = pd.read_csv(perm_file+'_train_x_'+str(len_seq)+'.csv', sep = '\t')['seq'].tolist()
+		train_x = [element.split(' ') for element in train_x]
+		print("perm train data loaded")
+		del train_data
+	
+	
+
 	test_x = pad_trun_sequences([i.split(' ') for i in test_data.seq][:test_data.count()[0]], len_seq )
 	del test_data
-
 	print('train/val/test sequences ready...')
 	
 	#perm_sequences = pd.read_csv(perm_file + ".csv")
@@ -244,32 +268,18 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 	#train_data = pd.read_csv('train_lab_abnorm_sc1.csv', sep = ',')
 	#val_data = pd.read_csv('val_lab_abnorm_sc1.csv', sep = ',')
 	#test_data = pd.read_csv('test_lab_abnorm_sc1.csv', sep = ',')
-	
-	#ori_sequences = pd.read_csv("all_train.csv")
-	#pad_ori_sequences = pad_trun_sequences([i.split(' ') for i in train_data.seq][:train_data.count()[0]], len_seq )+pad_trun_sequences([i.split(' ') for i in val_data.seq][:val_data.count()[0]], len_seq )+pad_trun_sequences([i.split(' ') for i in test_data.seq][:test_data.count()[0]], len_seq ) 
+	#pad_ori_sequences = pad_trun_sequences([i.split(' ') for i in train_data.seq][:train_data.count()[0]], len_seq )+pad_trun_sequences([i.split(' ') for i in val_data.seq][:val_data.count()[0]], len_seq )+pad_trun_sequences([i.split(' ') for i in test_data.seq][:test_data.count()[0]], -1 ) 
 
-	#del perm_sequences
-
-	#if perm == 'noperm':
-		#sequences = pad_ori_sequences
-
-	#elif perm == 'both':	
-		#sequences = pad_ori_sequences + pad_perm_sequences
-
-	#else: #othe perm only cases...
-		#sequences = pad_perm_sequences
-
-	#_model = gensim.models.Word2Vec(train_x+val_x+test_x, sg=1, window = win_size, iter=5, size= dim, min_count=1, workers=20)
-
-	#if perm == 'noperm':
-		#_model = gensim.models.Word2Vec(train_x+val_x+test_x, sg=1, window = 5, iter=5, size= 256, min_count=1, workers=20)
-		#_model.save("word2vec.model")
-		#_model = gensim.models.Word2Vec.load("word2vec.model")
+	#_model = gensim.models.Word2Vec(pad_ori_sequences, sg=1, window = 5, iter=5, size= 256, min_count=1, workers=20)#train_x+val_x+test_x
+	#_model.save("word2vec.model")
+	#print(' model saved...')
+	#_model = gensim.models.Word2Vec.load("word2vec.model")
 
 
 	_model = gensim.models.Word2Vec.load("word2vec.model")
 	print('w2v model loaded')
 	embeddings_index = {}
+	print(len(_model.wv.vocab))
 	embedding_matrix = np.zeros((len(_model.wv.vocab) + 1, dim))
 
 	for i, word in enumerate(_model.wv.vocab):
@@ -284,16 +294,25 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 	for i, word in enumerate(_model.wv.vocab):
 		word_index[word] = i
 
-	#map code sequence to code index sequence
-	train_x = encoder(train_x, word_index)
-	pd.DataFrame(np.array(train_x)).to_csv(perm_file+'_train_x_encoded'+str(len_seq)+'.csv')
-	print("perm train data saved")
-	train_x = np.array(pd.read_csv(perm_file+'_train_x_encoded'+str(len_seq)+'.csv', sep = ','))
-	val_x = encoder(val_x, word_index)
-	pd.DataFrame(np.array(val_x)).to_csv(perm_file+'_val_x_encoded'+str(len_seq)+'.csv')
-	train_x = np.array(pd.read_csv(perm_file+'_val_x_encoded'+str(len_seq)+'.csv', sep = ','))
+	#map code sequence to code index sequence	
+	
+	
+
+	if perm_file == 'None':
+		train_x = encoder(train_x, word_index)
+		val_x = encoder(val_x, word_index)
+	elif perm == 'perm':
+		train_x = encoder(train_x, word_index)
+		pd.DataFrame(np.array(train_x)).to_csv(perm_file+'_train_x_encoded'+str(len_seq)+'.csv', index=False)
+		print("perm train data encoded saved")
+		train_x = np.array(pd.read_csv(perm_file+'_train_x_encoded'+str(len_seq)+'.csv', sep = ','))
+		val_x = encoder(val_x, word_index)
+		pd.DataFrame(np.array(val_x)).to_csv(perm_file+'_val_x_encoded'+str(len_seq)+'.csv', index=False)
+		print("perm val data encoded saved")
+		val_x = np.array(pd.read_csv(perm_file+'_val_x_encoded'+str(len_seq)+'.csv', sep = ','))
 
 	test_x = encoder(test_x, word_index)
+
 
 	#################################
 	# Train predictive model for HF #
@@ -346,14 +365,14 @@ def main_pipeline (perm = 'noperm', perm_file = 'None', lr = 0.001, epoch_num = 
 				#writer.writerow({'predicted_val':predicted_val[i],'true_val':val_y[i]})
 		#csvFile.close()
 	
-	with open("tcn_abnormlabs_baseline/"+"exp_logs_gru_att_test_on_original_p1_100_unique0_fixed_w2v.csv", 'a', newline='') as csvFile: 
+	with open("tcn_abnormlabs_baseline/"+"sanity_check_exp_logs_gru_att_test_on_alpha_p1_100_unique0_fixed_w2v.csv", 'a', newline='') as csvFile: 
 		writer = csv.DictWriter(csvFile, fieldnames=['acc_val','auc_vals','prec_val','rec_val', 'acc_test','auc_test','prec_test','rec_test',"prauc_vals","prauc_test","dim",
     		"cnn_dim","len_seq", "perm","lr","epoch_num","len_seq", "curr_dim","win_size", "perm_file","run_num"])
 		writer.writerow({'acc_val': str(np.mean(acc_val)),'auc_vals': str(np.mean(auc_vals)),'prec_val': str(np.mean(prec_val)),'rec_val': str(np.mean(rec_val)),
                     	'acc_test': str(np.mean(acc_test)),'auc_test': str(np.mean(auc_test)),'prec_test': str(np.mean(prec_test)),'rec_test': str(np.mean(rec_test)), 
                     	"prauc_vals":str(np.mean(prauc_vals)),"prauc_test":str(np.mean(prauc_test)),
                     	'dim':str(dim),"cnn_dim":str(cnn_dim),"len_seq":str(len_seq), 'perm': perm, "lr": str(lr), "epoch_num":epoch_num, 
-                    	"len_seq": str(len_seq), "curr_dim":str(dim),  "win_size": str(win_size), "perm_file": str(perm_file), "run_num": str(run_num)})
+                    	"len_seq": str(len_seq), "curr_dim":str(dim),  "win_size": str(win_size), "perm_file": 'alphatestonoriginal'+str(perm_file), "run_num": str(run_num)})
 	csvFile.close()
 
 
@@ -364,25 +383,28 @@ import gc
 run_num=0
 lr = 0.001
 skip_gram = 1
-epoch_num = 30
+epoch_num = 100
 
 win_size = 5
 dim=256
 #perm_file = 'None'
 #res_block = 1
 #for win_size in [5,10,20]:
-for len_seq in [128,256,512]:
-	for perm in ['noperm', 'perm']:
-		for cnn_dim in [128,64,256]:
-			for perm_file in ['tcn_abnormlabs_baseline/permutation_percent_1_100_unique0_label']:#,'tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:		
-				#for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
-				run_num = run_num+1
-				print("run_num ", run_num)
-				if run_num<4:
-					continue;
-				if perm=='noperm':
-					perm_file = 'None'
-				main_pipeline (perm = perm, perm_file = perm_file, lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
-					len_seq = len_seq, skip_gram = skip_gram, dim = dim, win_size = win_size, run_num = run_num)
-				tensorflow.keras.backend.clear_session()
-				gc.collect()
+for iterator in [1,2,3,4,5,6,7,8,9,10]:
+	for len_seq in [256]:#128,256,
+		for perm in ['perm']:#'perm', 
+			for cnn_dim in [256]:#,64,256
+				for perm_file in ['tcn_abnormlabs_baseline/permutation_percent_0_1_unique0_orderingalpha_label']:#permutation_percent_1_100_unique0_label']:#,'tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:		
+					#for perm_file in ['tcn_abnormlabs_baseline/permutation_1_10_label','tcn_abnormlabs_baseline/permutation_1_6_label','tcn_abnormlabs_baseline/permutation_1_1_label', 'tcn_abnormlabs_baseline/permutation_1_2_label']:
+					run_num = run_num+1
+					print("iteration: ", iterator, "  run_num: ", run_num)
+					#if iterator ==1 and run_num < 4:
+						#continue;
+					if perm=='noperm':
+						#epoch_num = 100
+						perm_file = 'None'
+					#else: epoch_num = 5
+					main_pipeline (perm = perm, perm_file = perm_file, lr = lr, epoch_num = epoch_num, cnn_dim = cnn_dim, 
+						len_seq = len_seq, skip_gram = skip_gram, dim = dim, win_size = win_size, run_num = run_num)
+					tensorflow.keras.backend.clear_session()
+					gc.collect()
