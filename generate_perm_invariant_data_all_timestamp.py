@@ -14,6 +14,9 @@ parser.add_argument('--ordering', type=str, default= 'None')
 
 parser.add_argument('--tolerance', type=int, default= 1000)
 
+parser.add_argument('--pooling', type = str, default= 'sum')
+
+
 
 args = parser.parse_args()
 
@@ -63,13 +66,20 @@ import random
 import csv
 np.random.seed(100)
 
+
+import gensim
+_model = gensim.models.Word2Vec.load("word2vec.model")
+
 #Write header
-with open("tcn_abnormlabs_baseline/"+"permutation_percent_"+str(args.perm_time_num)+"_"+str(args.perm_num)+"_unique"+str(args.unique)
-        +"_ordering"+str(args.ordering)+"_label.csv", 'a', newline='') as csvFile:   
+with open("tcn_abnormlabs_baseline/"+"pooling_"+str(args.pooling)+".csv", 'a', newline='') as csvFile:   
         writer = csv.DictWriter(csvFile, fieldnames=['subject_id','seq','HF'])
         writer.writerow({'subject_id': 'subject_id', 'seq': 'seq','HF': 'HF'})
 csvFile.close()
 
+max_timestamp_num = 0
+res = pd.DataFrame(columns=('subject_id','seq','HF'))
+
+count = 0 
 for i in list(labs_filtered.subject_id.unique()):
     print(i)
     if len(list(labs_filtered.query('subject_id == '+str(i)).hadm_id.unique())) ==1:
@@ -77,6 +87,8 @@ for i in list(labs_filtered.subject_id.unique()):
     curr_subj = labs_filtered.query('subject_id == '+str(i) +'and hadm_id!='+str(list(last_adm_info.query('subject_id == '+str(i)).hadm_id)[0]))
     curr_subj_permutations = []
     all_timestamps = list(set(curr_subj.charttime))
+    if len(all_timestamps)>max_timestamp_num:
+        max_timestamp_num = len(all_timestamps)
     
     unique_charttime = []
     for e in list(curr_subj.charttime):
@@ -85,52 +97,51 @@ for i in list(labs_filtered.subject_id.unique()):
         else:
             unique_charttime = unique_charttime+[str(e)]
 
-    time_to_permute = random.sample( all_timestamps, k = int(args.perm_time_num*len(all_timestamps)))
-    print('time_to_permute: ', time_to_permute)
+    pooled_sum_sequence = []
+    for k in unique_charttime:
+        unordered_set = list(curr_subj[curr_subj['charttime'] ==str(k)].event)
+        unordered_set = [str(i) for i in unordered_set ]
+        unordered_set = [str(i) for i in unordered_set if i not in ['nan']]
+        if len(unordered_set)==0:
+            continue;
 
-    #print([str(l) in time_to_permute for l in  unique_charttime])
-    #print(unique_charttime)
-    #print(len(all_timestamps),' ', len(time_to_permute) , ' ',   len(unique_charttime))
-    #charttime_list
-    fs=0
-    while len(curr_subj_permutations)<args.perm_num:
-        if fs>args.tolerance:
-            print('ended early, number of timestamps: ',len(all_timestamps))
-            break;
-        fs = fs+1
-        curr_subj_permutation = ''
-        for k in unique_charttime:#set(curr_subj.charttime):
-            unordered_set = list(curr_subj[curr_subj['charttime'] ==str(k)].event)
-            #print(unordered_set)
+        #print(unordered_set)
+        if args.pooling=='sum':
+            pooled_sum = np.sum([_model.wv[event] for event in unordered_set], axis = -2)
+        elif args.pooling== 'max':
+            pooled_sum = np.max([_model.wv[event] for event in unordered_set], axis = -2)
+        elif args.pooling== 'mean':
+            pooled_sum = np.mean([_model.wv[event] for event in unordered_set], axis = -2)
 
-            if str(k) in time_to_permute:
-                new_seq = np.random.permutation(unordered_set)
-                new_seq = [str(e) for e in new_seq]
-                curr_subj_permutation = curr_subj_permutation +' '+ ' '.join(new_seq)
-                #pd.concat([curr_subj_permutation,new_seq ], ignore_index=True).append(new_seq)
-            else:
-                #print(k,' ', time_to_permute)
-                #print('not supposed to be here')
-                unordered_set = [str(e) for e in unordered_set]
-                if args.ordering == 'alpha':
-                    unordered_set.sort()
+        
+    pooled_sum_sequence = pooled_sum_sequence + [pooled_sum]
+    if len(pooled_sum_sequence) < 1095:
+            pooled_sum_sequence = [_model.wv['00000']]*(1095-len(pooled_sum_sequence)) + pooled_sum_sequence
+    print(len(pooled_sum_sequence))
 
-                curr_subj_permutation = curr_subj_permutation + ' '+' '.join(unordered_set)
-        #print(curr_subj_permutation)
-        if args.unique==1:
-            if curr_subj_permutation in curr_subj_permutations:
-                continue;
-        curr_subj_permutations =curr_subj_permutations+[curr_subj_permutation] 
-        #print(curr_subj_permutations)           
-    with open("tcn_abnormlabs_baseline/"+"permutation_percent_"+str(args.perm_time_num)+"_"+str(args.perm_num)+"_unique"+str(args.unique)
-        +"_ordering"+str(args.ordering)+"_label.csv", 'a', newline='') as csvFile:   
+
+
+    with open("tcn_abnormlabs_baseline/"+"pooling_"+str(args.pooling)+".csv", 'a', newline='') as csvFile:   
     #
         writer = csv.DictWriter(csvFile, fieldnames=['subject_id','seq','HF'])
-        for k in curr_subj_permutations:
             #print(' '.join([str(i) for i in k.split(' ')]))
             #print(all_train[all_train['subject_id']== i].HF)
             
             #print(' '.join([str(i) for i in k.split(' ') if i is not None]))
                 #train_seqs = train_seqs.append({'subject_id': str(i), 'seq': ','.join(i for i in k if i is not None)}, ignore_index=True)
-            writer.writerow({'subject_id': str(i), 'seq': ' '.join([str(i) for i in k.split(' ') if i is not None]),'HF': list(all_train[all_train['subject_id']== i].HF)[0]})
+        writer.writerow({'subject_id': str(i), 'seq': np.array(pooled_sum_sequence),'HF': list(all_train[all_train['subject_id']== i].HF)[0]})
     csvFile.close()
+
+    res.loc[count] = [str(i), np.array(pooled_sum_sequence),list(all_train[all_train['subject_id']== i].HF)[0]]
+    count = count + 1
+
+
+res.to_pickle("tcn_abnormlabs_baseline/"+"pooling_"+str(args.pooling)+".pkl")
+print('pickled object saved')
+print("longest sequence length: ", max_timestamp_num)
+
+    #print([str(l) in time_to_permute for l in  unique_charttime])
+    #print(unique_charttime)
+    #print(len(all_timestamps),' ', len(time_to_permute) , ' ',   len(unique_charttime))
+    #charttime_list
+    
